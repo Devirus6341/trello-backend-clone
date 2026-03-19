@@ -32,13 +32,10 @@ export const lists = pgTable("lists", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const priorityEnum = pgEnum("priority", ["low", "medium", "high"]);
-
 export const cards = pgTable("cards", {
   id: serial("id").primaryKey(),
   title: varchar("title", { length: 256 }).notNull(),
   description: text("description"),
-  priority: priorityEnum("priority").default("low"),
     userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   listId: integer("list_id").notNull().references(() => lists.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").defaultNow(),

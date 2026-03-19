@@ -60,11 +60,14 @@ const { email, password } = req.body;
       sendAccessToken(res, access);
 });
 
-app.post('/logout', (req: Request, res: Response) => {
-  res.clearCookie('refreshToken', { path: '/' });
+app.post('/logout', async (req: Request, res: Response) => {
+    const userId = isAuth(req); 
+    if (userId) {
+        await db.update(users).set({ refreshToken: null }).where(eq(users.id, userId));
+    }
+    res.clearCookie('refreshToken', { path: '/' });
     return res.json({ message: "Logged out" });
 });
-
 
 app.post('/refresh-token', async(req: Request, res: Response) => {
   const token = req.cookies.refreshToken;
@@ -112,7 +115,8 @@ app.get('/boards', async (req: Request, res: Response) => {
     const userId = isAuth(req);
     if (!userId) 
         return res.status(401).json({ error: "Not authenticated" });
-    const result = await db.select().from(boards).where(eq(boards.workspaceId, workspaces.id));
+    const {workspaceId} = req.query;
+    const result = await db.select().from(boards).where(eq(boards.workspaceId ,Number(workspaceId)));
     res.json({ result });
 });
 app.post('/boards', async (req: Request, res: Response) => {
@@ -130,18 +134,40 @@ app.get('/lists', async (req: Request, res: Response) => {
     const userId = isAuth(req);
     if (!userId) 
         return res.status(401).json({ error: "Not authenticated" });
-    const result = await db.select().from(lists).where(eq(lists.boardId, boards.id));
+    const {boardId} = req.query;
+    const result = await db.select().from(lists).where(eq(lists.boardId, Number(boardId)));
     res.json({ result });
 });
-app.post('/lists', async (req: Request, res: Response) => {});
+app.post('/lists', async (req: Request, res: Response) => {
+        const userId = isAuth(req);
+        if (!userId)
+            return res.status(401).json({ error: "Not authenticated" });
+        const {title, boardId} = req.body;
+
+        const [result] = await db.insert(lists).values(
+            {name: title, boardId},
+        ).returning();
+        res.json(result);
+});
 app.get('/cards', async (req: Request, res: Response) => {
     const userId = isAuth(req);
     if (!userId) 
         return res.status(401).json({ error: "Not authenticated" });
-    const result = await db.select().from(cards).where(eq(cards.listId, lists.id));
+    const {listId} = req.query;
+    const result = await db.select().from(cards).where(eq(cards.listId, Number(listId)));
     res.json({ result });
 });
-app.post('/cards', async (req: Request, res: Response) => {});
+app.post('/cards', async (req: Request, res: Response) => {
+        const userId = isAuth(req);
+        if (!userId)
+            return res.status(401).json({ error: "Not authenticated" });
+        const {title, description, listId} = req.body;
+
+        const [result] = await db.insert(cards).values(
+            {title, description, userId, listId},
+        ).returning();
+        res.json(result);
+});
 
 
 app.listen(port, () => {
